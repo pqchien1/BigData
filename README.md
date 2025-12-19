@@ -1,5 +1,3 @@
-# BigData
-
 # 🐘 Big Data Labs - Hướng dẫn Chi tiết từ A đến Z
 
 > **Dự án thực hành đầy đủ** về xử lý dữ liệu lớn (Big Data) với Hadoop HDFS, MapReduce, Apache Spark, Spark Streaming và ElasticSearch - Tất cả chạy trên Docker.
@@ -15,17 +13,24 @@
 
 ## 📖 Mục lục
 
-- [Giới thiệu](#-giới-thiệu)
-- [Kiến trúc hệ thống](#-kiến-trúc-hệ-thống)
-- [Công nghệ sử dụng](#️-công-nghệ-sử-dụng)
-- [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
-- [Cài đặt và khởi động](#-cài-đặt-và-khởi-động)
-- [Chi tiết các Labs](#-chi-tiết-các-labs)
-- [Hướng dẫn sử dụng](#-hướng-dẫn-sử-dụng)
-- [Web UIs & Monitoring](#-web-uis--monitoring)
-- [Troubleshooting](#️-troubleshooting)
-- [Best Practices](#-best-practices)
-- [Tài liệu tham khảo](#-tài-liệu-tham-khảo)
+### Phần 1: Chuẩn bị
+- [🎯 Tổng quan dự án](#-tổng-quan-dự-án)
+- [🏗️ Kiến trúc hệ thống](#️-kiến-trúc-hệ-thống)
+- [💻 Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+- [⚙️ Cài đặt Docker Desktop](#️-cài-đặt-docker-desktop)
+- [🚀 Khởi động cluster lần đầu](#-khởi-động-cluster-lần-đầu)
+
+### Phần 2: Các Labs chi tiết
+- [📘 Lab 1: HDFS - Lưu trữ phân tán](#-lab-1-hdfs---lưu-trữ-phân-tán)
+- [📗 Lab 2: MapReduce - Xử lý song song](#-lab-2-mapreduce---xử-lý-song-song)
+- [📕 Lab 3: ElasticSearch - Tìm kiếm dữ liệu](#-lab-3-elasticsearch---tìm-kiếm-dữ-liệu)
+- [📙 Lab 4: Spark - Xử lý nhanh](#-lab-4-spark---xử-lý-nhanh)
+- [📔 Lab 5: Spark Streaming - Real-time](#-lab-5-spark-streaming---real-time)
+
+### Phần 3: Vận hành
+- [🖥️ Web UIs & Monitoring](#️-web-uis--monitoring)
+- [⚠️ Troubleshooting](#️-troubleshooting)
+- [💡 Tips & Best Practices](#-tips--best-practices)
 
 ---
 
@@ -207,6 +212,37 @@ Bạn sẽ thấy:
 
 ## 📚 Chi tiết các Labs
 
+### ⚡ Quick Start cho từng Lab
+
+- **Lab 1 (HDFS):**
+   - Khởi động: `docker-compose up -d namenode datanode1 datanode2`
+   - Tạo thư mục: `docker exec namenode hdfs dfs -mkdir -p /user/hadoop/hdsd`
+   - Upload 1GB: `docker exec namenode hdfs dfs -put Lab01/1GB/1GB.bin /user/hadoop/hdsd/data.bin`
+   - Kiểm tra blocks: `docker exec namenode hdfs fsck /user/hadoop/hdsd/data.bin -files -blocks -locations`
+
+- **Lab 2 (MapReduce WordCount):**
+   - Upload input: `docker exec namenode hdfs dfs -put Lab02/input_test.txt /user/hadoop/input/`
+   - Chạy job: `docker exec namenode hadoop jar /workspace/Lab02/wchdsd.jar WordCount /user/hadoop/input /user/hadoop/wordcount/output`
+   - Xem kết quả: `docker exec namenode hdfs dfs -cat /user/hadoop/wordcount/output/part-r-00000`
+
+- **Lab 3 (ElasticSearch):**
+   - Khởi động: `./run-lab3.ps1` hoặc `docker-compose --profile lab3 up -d`
+   - Kiểm tra health: `Invoke-RestMethod http://localhost:9200/_cluster/health?pretty`
+   - Tạo index + doc: dùng ví dụ PowerShell trong phần Lab 3
+   - Xem Kibana: http://localhost:5601
+
+- **Lab 4 (Spark - PySpark WordCount):**
+   - Chạy: `./run-lab4.ps1` hoặc spark-submit như ví dụ
+   - Input: `hdfs://namenode:9000/user/hadoop/input/input_test.txt`
+   - Output: `hdfs://namenode:9000/user/hadoop/spark-output`
+   - Xem kết quả: `docker exec namenode hdfs dfs -cat /user/hadoop/spark-output/part-*`
+
+- **Lab 5 (Spark Streaming):**
+   - Scala: `./run-lab5.ps1` + `docker exec spark-master bash /workspace/Lab05/stream.sh`
+   - Python Socket: spark-submit `SocketStreamPython.py` + gửi dữ liệu `nc localhost 7777`
+   - Python LogAnalyzer: spark-submit `LogAnalyzerPython.py` + stream `nc -l 9999`
+   - Theo dõi UI: http://localhost:4040
+
 ### 🔵 Lab 1: Hadoop HDFS - Distributed File System
 
 **Mục tiêu**: Hiểu cách HDFS lưu trữ và phân tán dữ liệu
@@ -242,6 +278,17 @@ Bạn sẽ thấy:
 **Kết quả mong đợi**:
 - File 1GB được chia thành 8 blocks (~128MB/block)
 - Mỗi block được replicate 2 lần (vì có 2 datanodes)
+ - Thư mục xuất hiện trong HDFS: `/user/hadoop/hdsd/`
+
+**Xác minh nhanh**:
+- Mở HDFS NameNode UI: http://localhost:9870 → "Utilities → Browse the file system" → kiểm tra `user/hadoop/hdsd`
+- Chạy báo cáo cluster: `docker exec namenode hdfs dfsadmin -report` → thấy 2 live datanodes
+- Dò block/replication: `docker exec namenode hdfs fsck /user/hadoop/hdsd/data.bin -files -blocks -locations`
+
+**Troubleshooting (Lab 1)**:
+- `hdfs dfs` lỗi: đảm bảo containers `namenode`, `datanode1`, `datanode2` đang chạy (`docker-compose ps`)
+- Thư mục không thấy trên UI: refresh UI hoặc kiểm tra đường dẫn đúng `/user/hadoop/hdsd`
+- Thiếu dung lượng: xóa dữ liệu test cũ `docker exec namenode hdfs dfs -rm -r /user/hadoop/old-data`
 - Web UI hiển thị: http://localhost:9870
 
 ---
@@ -317,6 +364,16 @@ public void reduce(Text key, Iterable<IntWritable> values, Context context) {
 - YARN UI: http://localhost:8088
 - Job history: http://localhost:19888
 
+**Verification**:
+- Output tồn tại: `docker exec namenode hdfs dfs -ls /user/hadoop/wordcount/output`
+- Nội dung đúng: `docker exec namenode hdfs dfs -cat /user/hadoop/wordcount/output/part-r-00000 | head -n 10`
+- YARN hiển thị trạng thái `SUCCEEDED`: mở http://localhost:8088 và kiểm tra ứng dụng gần nhất.
+
+**Troubleshooting**:
+- `Class not found`: đảm bảo tên class `WordCount` đúng trong lệnh `hadoop jar`.
+- `No such file or directory`: kiểm tra đường dẫn HDFS đầu vào `/user/hadoop/input` đã có file.
+- `Output exists`: xóa output cũ trước khi chạy lại: `docker exec namenode hdfs dfs -rm -r /user/hadoop/wordcount/output`
+
 ---
 
 ### 🔴 Lab 3: ElasticSearch & Kibana - Search Engine
@@ -374,6 +431,17 @@ GET _cluster/health
 GET _cat/nodes?v
 GET test-index/_search
 ```
+
+**Verification**:
+- Cluster health `green` hoặc `yellow`: `Invoke-RestMethod http://localhost:9200/_cluster/health?pretty`
+- Node list đầy đủ (master + 2 data): `Invoke-RestMethod http://localhost:9200/_cat/nodes?v`
+- Shards được phân phối: `Invoke-RestMethod http://localhost:9200/_cat/shards?v`
+- Tạo index và tìm kiếm hoạt động: dùng ví dụ tạo `test-index` và `GET test-index/_search` trả về hits.
+
+**Troubleshooting**:
+- Chậm khởi động hoặc lỗi bộ nhớ: giảm ES heap qua env `ES_JAVA_OPTS=-Xms512m -Xmx512m` và tắt `bootstrap.memory_lock` nếu cần.
+- `Connection refused`: kiểm tra container `elasticsearch-*` đã chạy (`docker-compose ps`) và port `9200`/`5601` mở.
+- `red` health: xóa index lỗi hoặc kiểm tra logs `docker-compose logs -f elasticsearch-master`.
 
 ---
 
@@ -444,6 +512,16 @@ counts.saveAsTextFile("hdfs://namenode:9000/user/hadoop/output")
 - Spark Master UI: http://localhost:8082
 - Spark Application UI: http://localhost:4040 (khi job chạy)
 
+**Verification**:
+- Output tồn tại: `docker exec namenode hdfs dfs -ls /user/hadoop/spark-output`
+- Nội dung đúng: `docker exec namenode hdfs dfs -cat /user/hadoop/spark-output/part-* | head -n 10`
+- Ứng dụng hiển thị trong UI 4040 khi chạy và hoàn tất với status `Succeeded`.
+
+**Troubleshooting**:
+- OOM hoặc `Executor Lost`: giảm kích thước input, tăng memory: thêm `--driver-memory 1g --executor-memory 1g` vào `spark-submit`.
+- `File not found`: xác nhận đường dẫn HDFS input đúng và có dữ liệu.
+- Job treo lâu: chuyển `--master local[*]` khi chạy thử, kiểm tra logs `docker-compose logs -f spark-master`.
+
 ---
 
 ### 🟣 Lab 5: Spark Streaming - Real-time Processing
@@ -475,6 +553,47 @@ counts.saveAsTextFile("hdfs://namenode:9000/user/hadoop/output")
 docker exec spark-master bash /workspace/Lab05/stream.sh
 ```
 
+Hoặc chạy trực tiếp bản Python (khuyên dùng nếu thiếu SBT/Scala):
+
+**Option A - SocketStream (Python):**
+
+1) Terminal A: chạy Spark Streaming
+```powershell
+docker exec spark-master bash -c "cd /workspace/Lab05 && /spark/bin/spark-submit --master local[*] SocketStreamPython.py"
+```
+
+2) Terminal B: gửi dữ liệu vào port 7777
+```powershell
+docker exec -it spark-master bash -c "\
+for i in {1..10}; do \
+   echo 'INFO: record ' $i; \
+   echo 'ERROR: failed at ' $i; \
+   sleep 1; \
+done | nc localhost 7777\
+"
+```
+
+Kỳ vọng hiển thị (Terminal A): chỉ các dòng chứa "ERROR" theo từng batch thời gian.
+
+**Option B - LogAnalyzer (Python):**
+
+1) Terminal A: chạy Spark Streaming analyzer
+```powershell
+docker exec spark-master bash -c "cd /workspace/Lab05 && /spark/bin/spark-submit --master local[*] LogAnalyzerPython.py"
+```
+
+2) Terminal B: stream log Apache mẫu vào port 9999
+```powershell
+docker exec -it spark-master bash -c "\
+while true; do \
+   head -n 100 /workspace/Lab05/log.txt | nc -l 9999; \
+   sleep 12; \
+done\
+"
+```
+
+Kỳ vọng hiển thị mỗi 10s: tổng số logs, thống kê content size (avg/min/max), phân bố response code, top IPs (>10 lần) và top endpoints.
+
 **Window Operations**:
 
 ```scala
@@ -492,6 +611,18 @@ Phân tích real-time:
 - Content size statistics
 - Top 10 endpoints
 - Frequent IP addresses
+
+**Dừng job:** Spark Streaming chạy liên tục để lắng nghe dữ liệu. Dừng bằng phím Ctrl+C tại terminal đang chạy spark-submit, hoặc dùng `timeout`:
+
+```powershell
+docker exec spark-master bash -c "timeout 60s /spark/bin/spark-submit --master local[*] SocketStreamPython.py"
+```
+
+**Troubleshooting nhanh (Streaming):**
+- Connection refused: cần khởi chạy `nc -l <port>` (listener) TRƯỚC khi spark kết nối
+- Không có dữ liệu: kiểm tra lệnh gửi dữ liệu và port đúng (7777/9999)
+- Chậm/mất dữ liệu: tăng batch interval hoặc giảm tốc độ gửi
+- Theo dõi UI: mở http://localhost:4040 khi job đang chạy
 
 **Monitoring**:
 - Spark Streaming UI: http://localhost:4040
